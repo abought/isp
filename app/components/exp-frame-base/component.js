@@ -1,3 +1,4 @@
+import Ember from 'ember';
 import DS from 'ember-data';
 
 import ExpFrameBase from 'exp-player/components/exp-frame-base/component';
@@ -22,30 +23,30 @@ export default ExpFrameBase.extend({
     },
 
     displayError(error) {
-        if (error instanceof DS.InvalidError) {
+        if (error instanceof DS.AdapterError) {
+            // TODO: See if 401 and 403 errors get handled internally by adapter *first*, and if so make this far more generic (DS.AdapterError)
             // Respond to 400 errors by showing error text. Most common reason for a 400 error would be
             const msg = this.get('i18n').t('previousLogin.line2').string;
-            this.toast.error(msg);
+            this.get('toast').error(msg);
         } else {
             // If this is not an error we intend to handle, reraise it (we except that adapters will handle 401 and
             //   403 internally by redirecting to the login page)
-            throw err;
+            throw error;
         }
     },
 
     actions: {
         save() {
-            this._save().catch(err => this.send('displayError', err));
+            this._save().catch(err => this.displayError(err));
         },
 
         next() {
-            var frameId = `${this.get('frameIndex')}-${this.get('id')}`;
             this.send('setTimeEvent', 'nextFrame');
 
             // Only advance the form if save succeeded
             this._save()
                 .then(() => this.sendAction('next'))
-                .catch(err => this.send('displayError', err));
+                .catch(err => this.displayError(err));
             window.scrollTo(0, 0);
         }
     }
