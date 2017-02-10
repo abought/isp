@@ -22,6 +22,7 @@ moduleForComponent('exp-frame-base', 'Integration | Component | exp frame base',
 
         this.register('service:toast', toastStub);
         // Give the base frame a temporary template, so that we can trigger specific actions as desired
+        //  Refs: http://toranbillups.com/blog/archive/2016/04/17/integration-testing-dynamic-templates-and-the-component-helper/
         this.register('template:components/exp-frame-base', BasicTemplate);
 
         this.errorSpy = errorSpy;
@@ -29,13 +30,10 @@ moduleForComponent('exp-frame-base', 'Integration | Component | exp frame base',
 });
 
 test('it shows an error and does not advance when it encounters an adapter 400 error', function (assert) {
-    // Expects the error method to be called on toast service
     assert.expect(3);
 
     const nextAction = sinon.spy();
-    const saveHandler = sinon.spy(() => {
-        return Ember.RSVP.reject(new DS.InvalidError());
-    });
+    const saveHandler = sinon.spy(() => Ember.RSVP.reject(new DS.InvalidError()));
 
     this.on('nextAction', nextAction);
     this.on('saveFrame', saveHandler);
@@ -46,37 +44,32 @@ test('it shows an error and does not advance when it encounters an adapter 400 e
                 saveHandler=(action 'saveFrame')
             }}`);
 
-    // Logic: click next button. Save should be called but the passed-in next action should not.
-
-    // We expect that a warning was displayed to the user, and the next action was circumvented
-    // TODO: Figure out a way to test that toast.warning was called
-    console.log('nextAction.calledOnce', nextAction.calledOnce);
-
-
+    // Logic: click next button to trigger the internal next action. Since save fails, the passed-in next action
+    //  won't propagate up.
     this.$('#go-next').click();
     assert.ok(saveHandler.calledOnce, 'Clicking next button should attempt to save the frame');
     assert.notOk(nextAction.calledOnce, 'When save fails, the passed-in next action should not be called');
     assert.ok(this.errorSpy.calledOnce, 'When save fails, a message should be presented to the user');
 });
 
-//
- test('Moves to the next frame when save is successful', function (assert) {
-//
-//     // Set any properties with this.set('myProperty', 'value');
-//     // Handle any actions with this.on('myAction', function(val) { ... });
-//
-//     const nextAction = sinon.spy();
-//     const saveFrame = () => Ember.RSVP.reject(new DS.InvalidError);
-//
-//     this.set('next', nextAction);
-//     this.set('saveFrame', saveFrame);
-//
-//     this.render(
-//         hbs`{{exp-frame-base
-//                 next=(action 'next')
-//                 saveHandler=(action 'saveFrame')
-//             }}`);
-//
-//     // We expect that a warning was displayed to the user, and the next action was circumvented
-//     assert.notOk(nextAction.calledOnce);
- });
+test('Moves to the next frame when save is successful', function (assert) {
+    assert.expect(3);
+
+    const nextAction = sinon.spy();
+    const saveHandler = sinon.spy(() => Ember.RSVP.resolve());
+
+    this.on('nextAction', nextAction);
+    this.on('saveFrame', saveHandler);
+
+    this.render(
+        hbs`{{exp-frame-base
+                next=(action 'nextAction')
+                saveHandler=(action 'saveFrame')
+            }}`);
+
+    // Logic: click next button to trigger the internal next action. Save succeeds, so the passed-in next action fires
+    this.$('#go-next').click();
+    assert.ok(saveHandler.calledOnce, 'Clicking next button should attempt to save the frame');
+    assert.ok(nextAction.calledOnce, 'When save succeeds, the passed-in next action should be called');
+    assert.notOk(this.errorSpy.calledOnce, 'Because save succeeds, the user should not see any error messages');
+});

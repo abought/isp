@@ -5,7 +5,8 @@ import ExpFrameBase from 'exp-player/components/exp-frame-base/component';
 
 /**
  * Custom version of frame base that allows ISP (but no other platform app) to provide special handling of
- *   400 errors on save
+ *   errors on save. Mostly targeted at 400 & 500 errors- where problem is a save failure not associated with auth.
+ *   (Assumption: 401 and 403 errors will be handled by DataAdapterMixin before they reach this level)
  *
  * This might be useful to the generic platform, but putting it in ISP for the moment lets us reduce QA burden for
  *   turnaround on a critical bug
@@ -15,7 +16,6 @@ export default ExpFrameBase.extend({
     i18n: Ember.inject.service(),
 
     _save() {
-        // TODO: Verify that this is never called directly apart from next: ISP will likely break this assumption
         var frameId = `${this.get('frameIndex')}-${this.get('id')}`;
         // When exiting frame, save the data to the base player using the provided saveHandler
         const payload = this.serializeContent();
@@ -24,8 +24,7 @@ export default ExpFrameBase.extend({
 
     displayError(error) {
         if (error instanceof DS.AdapterError) {
-            // TODO: See if 401 and 403 errors get handled internally by adapter *first*, and if so make this far more generic (DS.AdapterError)
-            // Respond to 400 errors by showing error text. Most common reason for a 400 error would be
+            // If the save failure was a server error, warn the user TODO: Improve the error message
             const msg = this.get('i18n').t('previousLogin.line2').string;
             this.get('toast').error(msg);
         } else {
