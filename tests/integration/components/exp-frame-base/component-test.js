@@ -6,10 +6,6 @@ import sinon from 'sinon';
 
 import hbs from 'htmlbars-inline-precompile';
 
-const toastStub = Ember.Service.extend({
-    //error: () => assert.ok(true, 'Toast error method was called')  // jshint ignore:line
-});
-
 // The component doesn't actually have a template, so generate one that can be used to trigger actions
 const BasicTemplate = hbs`<button id="save-frame" {{action 'saveHandler'}}>Save</button>
   <button id="go-next" {{action 'next'}}>Next</button>`;
@@ -18,25 +14,30 @@ moduleForComponent('exp-frame-base', 'Integration | Component | exp frame base',
     integration: true,
 
     beforeEach() {
+        // Define a fake service so that we can monitor whether specific methods were called
+        const errorSpy = sinon.spy();
+        const toastStub = Ember.Service.extend({
+            error: errorSpy
+        });
+
         this.register('service:toast', toastStub);
-        // Give the base frame a temporary template
+        // Give the base frame a temporary template, so that we can trigger specific actions as desired
         this.register('template:components/exp-frame-base', BasicTemplate);
+
+        this.errorSpy = errorSpy;
     }
 });
 
-test('it shows an error when it encounters an adapter 400 error', function (assert) {
+test('it shows an error and does not advance when it encounters an adapter 400 error', function (assert) {
     // Expects the error method to be called on toast service
     assert.expect(3);
 
     const nextAction = sinon.spy();
-    this.on('nextAction', nextAction);
-
-
     const saveHandler = sinon.spy(() => {
-        //assert.ok(true, 'Save frame method was called');
         return Ember.RSVP.reject(new DS.InvalidError());
     });
-    //
+
+    this.on('nextAction', nextAction);
     this.on('saveFrame', saveHandler);
 
     this.render(
@@ -55,10 +56,11 @@ test('it shows an error when it encounters an adapter 400 error', function (asse
     this.$('#go-next').click();
     assert.ok(saveHandler.calledOnce, 'Clicking next button should attempt to save the frame');
     assert.notOk(nextAction.calledOnce, 'When save fails, the passed-in next action should not be called');
+    assert.ok(this.errorSpy.calledOnce, 'When save fails, a message should be presented to the user');
 });
 
 //
-// test('it shows an error when it encounters some generic adapter error', function (assert) {
+ test('Moves to the next frame when save is successful', function (assert) {
 //
 //     // Set any properties with this.set('myProperty', 'value');
 //     // Handle any actions with this.on('myAction', function(val) { ... });
@@ -77,4 +79,4 @@ test('it shows an error when it encounters an adapter 400 error', function (asse
 //
 //     // We expect that a warning was displayed to the user, and the next action was circumvented
 //     assert.notOk(nextAction.calledOnce);
-// });
+ });
